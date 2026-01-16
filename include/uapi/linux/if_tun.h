@@ -94,12 +94,12 @@
 #define TUN_F_UFO	0x10	/* I can handle UFO packets */
 
 // ------------- START of KNOX_VPN ------------------//
-#define TUN_META_HDR	0x0800
-#define TUNGETMETAPARAM _IOR('T', 218, int)
-#define IFF_META_HDR	0x0004
-#define TUN_GET_META_HDR_SZ 0
-#define TUN_GET_META_MARK_OFFSET 1
-#define DEFAULT_IHL 5
+//#define TUN_META_HDR	0x0800
+//#define TUNGETMETAPARAM _IOR('T', 218, int)
+//#define IFF_META_HDR	0x0004
+//#define TUN_GET_META_HDR_SZ 0
+//#define TUN_GET_META_MARK_OFFSET 1
+//#define DEFAULT_IHL 5
 // ------------- END of KNOX_VPN -------------------//
 
 /* Protocol info prepended to the packets (when IFF_NO_PI is not set) */

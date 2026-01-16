@@ -329,9 +329,9 @@ struct skb_shared_info {
 	void *		destructor_arg;
 
  // ------------- START of KNOX_VPN ------------------//
-	uid_t uid;
-	pid_t pid;
-	u_int32_t knox_mark;
+//	uid_t uid;
+//	pid_t pid;
+//	u_int32_t knox_mark;
  // ------------- END of KNOX_VPN -------------------//
 
 

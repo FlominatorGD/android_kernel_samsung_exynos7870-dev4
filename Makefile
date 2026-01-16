@@ -19,6 +19,8 @@ unexport LC_ALL
 LC_COLLATE=C
 LC_NUMERIC=C
 export LC_COLLATE LC_NUMERIC
+export PLATFORM_VERSION=10
+export ANDROID_MAJOR_VERSION=q
 
 # Avoid interference with shell env settings
 unexport GREP_OPTIONS
@@ -778,6 +780,8 @@ KBUILD_CFLAGS += $(call cc-disable-warning, pointer-sign)
 
 # disable stringop warnings in gcc 8+
 KBUILD_CFLAGS += $(call cc-disable-warning, stringop-truncation)
+
+KBUILD_CFLAGS  += $(call cc-option, -Wno-maybe-uninitialized)
 
 # disable invalid "can't wrap" optimizations for signed / pointers
 KBUILD_CFLAGS	+= $(call cc-option,-fno-strict-overflow)
