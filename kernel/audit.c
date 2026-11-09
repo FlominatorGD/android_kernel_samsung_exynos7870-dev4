@@ -1901,7 +1901,11 @@ void audit_log_task_info(struct audit_buffer *ab, struct task_struct *tsk)
 	cred = current_cred();
 
 	spin_lock_irq(&tsk->sighand->siglock);
-	if (tsk->signal && tsk->signal->tty && tsk->signal->tty->name)
+	/* tty_struct->name is an array, so testing it for NULL is dead code
+	 * that newer clang rejects (-Wpointer-bool-conversion).  Upstream
+	 * replaced this with audit_get_tty()/tty_name() in v4.19.
+	 */
+	if (tsk->signal && tsk->signal->tty)
 		tty = tsk->signal->tty->name;
 	else
 		tty = "(none)";

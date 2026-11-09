@@ -1,6 +1,7 @@
 #ifndef _LINUX_JIFFIES_H
 #define _LINUX_JIFFIES_H
 
+#include <linux/cache.h>
 #include <linux/math64.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -62,19 +63,18 @@ extern int register_refined_jiffies(long clock_tick_rate);
 /* TICK_USEC is the time between ticks in usec assuming fake USER_HZ */
 #define TICK_USEC ((1000000UL + USER_HZ/2) / USER_HZ)
 
-/* some arch's have a small-data section that can be accessed register-relative
- * but that can only take up to, say, 4-byte variables. jiffies being part of
- * an 8-byte variable may not be correctly accessed unless we force the issue
- */
-#define __jiffy_data  __attribute__((section(".data")))
-
 /*
  * The 64-bit value is not atomic - you MUST NOT read it
  * without sampling the sequence number in jiffies_lock.
  * get_jiffies_64() will do this for you as appropriate.
+ *
+ * The definitions in kernel/time/timer.c use __cacheline_aligned_in_smp, so
+ * the declarations have to match, otherwise clang rejects the mismatch with
+ * -Wsection.  (Upstream 7c30f352c852 "jiffies.h: declare jiffies and
+ * jiffies_64 with ____cacheline_aligned_in_smp".)
  */
-extern u64 __jiffy_data jiffies_64;
-extern unsigned long volatile __jiffy_data jiffies;
+extern u64 __cacheline_aligned_in_smp jiffies_64;
+extern unsigned long volatile __cacheline_aligned_in_smp jiffies;
 
 #if (BITS_PER_LONG < 64)
 u64 get_jiffies_64(void);

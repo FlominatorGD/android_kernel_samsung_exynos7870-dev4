@@ -758,13 +758,15 @@ irq_thread_check_affinity(struct irq_desc *desc, struct irqaction *action)
 
 	raw_spin_lock_irq(&desc->lock);
 	/*
-	 * This code is triggered unconditionally. Check the affinity
-	 * mask pointer. For CPU_MASK_OFFSTACK=n this is optimized out.
+	 * Failing to allocate the descriptor's affinity mask fails the whole
+	 * descriptor setup, so the mask is always available here.  Testing
+	 * desc->irq_data.affinity for NULL is dead code (cpumask_var_t is an
+	 * array when CONFIG_CPUMASK_OFFSTACK=n) and newer clang rejects it as
+	 * -Wpointer-bool-conversion.  Upstream removed the check in
+	 * 3de5e46e50ab ("genirq: Remove cpumask availability check on kthread
+	 * affinity setting").
 	 */
-	if (desc->irq_data.affinity)
-		cpumask_copy(mask, desc->irq_data.affinity);
-	else
-		valid = false;
+	cpumask_copy(mask, desc->irq_data.affinity);
 	raw_spin_unlock_irq(&desc->lock);
 
 	if (valid)

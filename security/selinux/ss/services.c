@@ -155,7 +155,10 @@ static int selinux_set_mapping(struct policydb *pol,
 		}
 
 		k = 0;
-		while (p_in->perms && p_in->perms[k]) {
+		/* p_in->perms is an array, so the NULL test is dead code and
+		 * newer clang rejects it (-Wpointer-bool-conversion).
+		 */
+		while (p_in->perms[k]) {
 			/* An empty permission string skips ahead */
 			if (!*p_in->perms[k]) {
 				k++;

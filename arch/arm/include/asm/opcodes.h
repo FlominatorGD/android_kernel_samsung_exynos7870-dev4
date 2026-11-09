@@ -218,9 +218,17 @@ extern asmlinkage unsigned int arm_check_condition(u32 opcode, u32 psr);
 
 /* Helpers for the helpers.  Don't use these directly. */
 #ifdef __ASSEMBLY__
-#define ___inst_arm(x) .long x
-#define ___inst_thumb16(x) .short x
-#define ___inst_thumb32(first, second) .short first, second
+/*
+ * The space separator is omitted so that __inst_arm() and friends can be
+ * parsed either as an assembler directive or as an assembler macro argument.
+ * Both comma and space separate assembler macro arguments (parenthesised
+ * content is not split), so ".long (x)" is split into the two arguments
+ * ".long" and "(x)" by the clang integrated assembler, whereas GNU as
+ * happens to scrub the space away first.  ".long(x)" is unambiguous for both.
+ */
+#define ___inst_arm(x) .long(x)
+#define ___inst_thumb16(x) .short(x)
+#define ___inst_thumb32(first, second) .short(first), .short(second)
 #else
 #define ___inst_arm(x) ".long " __stringify(x) "\n\t"
 #define ___inst_thumb16(x) ".short " __stringify(x) "\n\t"

@@ -301,7 +301,8 @@ do {								\
 	"	.quad		1b, 3b\n"			\
 	"	.popsection\n"					\
 	: "=&r" (res), "+r" (data), "=&r" (temp)		\
-	: "r" (addr), "i" (-EAGAIN), "i" (-EFAULT)		\
+	: "r" ((unsigned long)addr), "i" ((int)-EAGAIN),		\
+	  "i" ((int)-EFAULT)					\
 	: "memory");						\
 	uaccess_disable();					\
 } while (0)

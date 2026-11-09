@@ -353,15 +353,38 @@ $(srctree)/scripts/Kbuild.include: ;
 include $(srctree)/scripts/Kbuild.include
 
 # Make variables (CC, etc...)
+#
+# If LLVM=1 is passed on the command line, use the LLVM toolchain instead of
+# the default GNU one.  This mirrors the upstream "LLVM=1" support so that
+# Android builds do not have to spell out every LLVM tool on the make command
+# line (which is what the callers of this tree do today).  Note that LLVM=1
+# according to upstream also implies LLVM_IAS=1, i.e. the integrated
+# assembler; this tree still needs the (already-supported) LLVM_IAS handling
+# from scripts/Makefile.clang for that.
+ifeq ($(LLVM),1)
+LLVM_PREFIX	?=
+LLVM_SUFFIX	?=
+CC		= $(LLVM_PREFIX)clang$(LLVM_SUFFIX)
+LD		= $(LLVM_PREFIX)ld.lld$(LLVM_SUFFIX)
+AR		= $(LLVM_PREFIX)llvm-ar$(LLVM_SUFFIX)
+NM		= $(LLVM_PREFIX)llvm-nm$(LLVM_SUFFIX)
+OBJCOPY		= $(LLVM_PREFIX)llvm-objcopy$(LLVM_SUFFIX)
+OBJDUMP		= $(LLVM_PREFIX)llvm-objdump$(LLVM_SUFFIX)
+STRIP		= $(LLVM_PREFIX)llvm-strip$(LLVM_SUFFIX)
+READELF		= $(LLVM_PREFIX)llvm-readelf$(LLVM_SUFFIX)
+override HOSTCC		= $(LLVM_PREFIX)clang$(LLVM_SUFFIX)
+override HOSTCXX	= $(LLVM_PREFIX)clang++$(LLVM_SUFFIX)
+else
 AS		= $(CROSS_COMPILE)as
 LD		= $(CROSS_COMPILE)ld
 CC		= $(CROSS_COMPILE)gcc
-CPP		= $(CC) -E
 AR		= $(CROSS_COMPILE)ar
 NM		= $(CROSS_COMPILE)nm
 STRIP		= $(CROSS_COMPILE)strip
 OBJCOPY		= $(CROSS_COMPILE)objcopy
 OBJDUMP		= $(CROSS_COMPILE)objdump
+endif
+CPP		= $(CC) -E
 AWK		= awk
 GENKSYMS	= scripts/genksyms/genksyms
 INSTALLKERNEL  := installkernel
@@ -371,8 +394,12 @@ PYTHON		= python
 CHECK		= sparse
 
 ifeq ($(CONFIG_FIPS_FMP),)
+ifeq ($(LLVM),1)
+    export READELF
+else
     READELF        = $(CROSS_COMPILE)readelf
     export READELF
+endif
 endif
 
 CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__ \
@@ -705,10 +732,7 @@ endif
 KBUILD_CFLAGS += $(stackp-flag)
 
 ifeq ($(cc-name),clang)
-CLANG_TRIPLE	?= $(CROSS_COMPILE)
-ifneq ($(CLANG_TRIPLE),)
-KBUILD_CPPFLAGS += --target=$(notdir $(CLANG_TRIPLE:%-=%))
-endif
+include $(srctree)/scripts/Makefile.clang
 KBUILD_CPPFLAGS += $(call cc-option,-Qunused-arguments,)
 KBUILD_CPPFLAGS += $(call cc-option,-Wno-unknown-warning-option,)
 KBUILD_CFLAGS += $(call cc-disable-warning, unused-variable)
@@ -721,6 +745,37 @@ KBUILD_CFLAGS += $(call cc-disable-warning, tautological-compare)
 # See modpost pattern 2
 KBUILD_CFLAGS += $(call cc-option, -mno-global-merge,)
 KBUILD_CFLAGS += $(call cc-option, -fcatch-undefined-behavior)
+# -Werror is in KBUILD_CFLAGS, but clang diagnoses a number of things in
+# 3.18-era code that GCC stays quiet about.  These are backports of (or
+# equivalents to) the upstream -Wno-* additions for the clang build.
+KBUILD_CFLAGS += $(call cc-disable-warning, unused-but-set-variable)
+KBUILD_CFLAGS += $(call cc-disable-warning, unused-const-variable)
+KBUILD_CFLAGS += $(call cc-disable-warning, unneeded-internal-declaration)
+KBUILD_CFLAGS += $(call cc-disable-warning, unused-function)
+KBUILD_CFLAGS += $(call cc-disable-warning, asm-operand-widths)
+# ecryptfs/smb pass &packed_struct->member to helpers; harmless (the helpers
+# take void *).  Upstream added the same disable in v5.10.
+KBUILD_CFLAGS += $(call cc-disable-warning, address-of-packed-member)
+KBUILD_CFLAGS += $(call cc-disable-warning, misleading-indentation)
+KBUILD_CFLAGS += $(call cc-disable-warning, parentheses-equality)
+KBUILD_CFLAGS += $(call cc-disable-warning, logical-not-parentheses)
+# Vendor (Samsung) drivers are far more lax than mainline about enum types and
+# about integer<->pointer casts; clang only warns about these, so keep them
+# non-fatal instead of rewriting hundreds of out-of-tree driver lines.
+KBUILD_CFLAGS += $(call cc-disable-warning, implicit-enum-enum-cast)
+KBUILD_CFLAGS += $(call cc-disable-warning, void-pointer-to-enum-cast)
+KBUILD_CFLAGS += $(call cc-disable-warning, enum-conversion)
+KBUILD_CFLAGS += $(call cc-disable-warning, int-conversion)
+KBUILD_CFLAGS += $(call cc-disable-warning, incompatible-pointer-types)
+KBUILD_CFLAGS += $(call cc-disable-warning, incompatible-pointer-types-discards-qualifiers)
+KBUILD_CFLAGS += $(call cc-disable-warning, pointer-bool-conversion)
+KBUILD_CFLAGS += $(call cc-disable-warning, default-const-init-field-unsafe)
+# -Wall pulls in -Wstrict-prototypes; Samsung's 3.18 vendor code (sound/soc,
+# security/sdp, ...) is full of 'int foo()' declarations.
+KBUILD_CFLAGS += $(call cc-disable-warning, strict-prototypes)
+# clang-22 diagnoses the (unused) uninitialised const in typecheck() of
+# u64_to_user_ptr() and friends - pre-existing macro code, not a real bug.
+KBUILD_CFLAGS += $(call cc-disable-warning, default-const-init-var-unsafe)
 else
 
 # These warnings generated too much noise in a regular build.
@@ -809,7 +864,12 @@ KBUILD_CFLAGS   += $(call cc-option,-fconserve-stack)
 KBUILD_CFLAGS   += $(call cc-option,-Werror=implicit-int)
 
 # require functions to have arguments in prototypes, not empty 'int foo()'
+# Samsung's 3.18 vendor code (sound/soc, security/sdp, ...) is full of
+# 'int foo()' declarations, so keep this one diagnostic non-fatal there
+# instead of touching every vendor file.  Real errors are still errors.
+ifneq ($(cc-name),clang)
 KBUILD_CFLAGS   += $(call cc-option,-Werror=strict-prototypes)
+endif
 
 # Prohibit date/time macros, which would make the build non-deterministic
 KBUILD_CFLAGS   += $(call cc-option,-Werror=date-time)
@@ -855,7 +915,12 @@ KBUILD_LDFLAGS_MODULE += $(LDFLAGS_BUILD_ID)
 LDFLAGS_vmlinux += $(LDFLAGS_BUILD_ID)
 
 ifeq ($(CONFIG_STRIP_ASM_SYMS),y)
+ifeq ($(LLVM),1)
+# ld.lld has no -X; --discard-locals is the equivalent
+LDFLAGS_vmlinux	+= $(call ld-option, --discard-locals,)
+else
 LDFLAGS_vmlinux	+= $(call ld-option, -X,)
+endif
 endif
 
 # Default kernel image to build when no specific target is given.

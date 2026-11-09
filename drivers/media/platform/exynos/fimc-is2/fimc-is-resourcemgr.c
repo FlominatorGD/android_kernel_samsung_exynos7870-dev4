@@ -717,12 +717,25 @@ int fimc_is_resource_open(struct fimc_is_resourcemgr *resourcemgr, u32 rsc_type,
 		resource->pdev = core->sensor[RESOURCE_TYPE_SENSOR3].pdev;
 		break;
 	case RESOURCE_TYPE_SENSOR4:
+		/* core->sensor[] only has FIMC_IS_SENSOR_COUNT (4 on this SoC)
+		 * entries, so these two slots must not be indexable unless the
+		 * config really provides them - otherwise this reads past the
+		 * array (clang -Warray-bounds).
+		 */
+#if FIMC_IS_SENSOR_COUNT > RESOURCE_TYPE_SENSOR4
 		result = &core->sensor[RESOURCE_TYPE_SENSOR4];
 		resource->pdev = core->sensor[RESOURCE_TYPE_SENSOR4].pdev;
+#else
+		ret = -EINVAL;
+#endif
 		break;
 	case RESOURCE_TYPE_SENSOR5:
+#if FIMC_IS_SENSOR_COUNT > RESOURCE_TYPE_SENSOR5
 		result = &core->sensor[RESOURCE_TYPE_SENSOR5];
 		resource->pdev = core->sensor[RESOURCE_TYPE_SENSOR5].pdev;
+#else
+		ret = -EINVAL;
+#endif
 		break;
 	case RESOURCE_TYPE_ISCHAIN:
 		for (stream = 0; stream < FIMC_IS_STREAM_COUNT; ++stream) {

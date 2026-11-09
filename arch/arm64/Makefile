@@ -10,7 +10,11 @@
 #
 # Copyright (C) 1995-2001 by Russell King
 
+ifeq ($(LLVM),1)
+LDFLAGS_vmlinux	:=--no-undefined --discard-locals
+else
 LDFLAGS_vmlinux	:=--no-undefined -X
+endif
 CPPFLAGS_vmlinux.lds = -DTEXT_OFFSET=$(TEXT_OFFSET)
 OBJCOPYFLAGS	:=-O binary -R .note -R .note.gnu.build-id -R .comment -S
 GZFLAGS		:=-9
@@ -23,6 +27,7 @@ KBUILD_CFLAGS	+= -mgeneral-regs-only
 KBUILD_CFLAGS	+= -fno-pic
 KBUILD_CFLAGS	+= $(call cc-option, -mpc-relative-literal-loads)
 
+ifneq ($(LLVM),1)
 ifeq ($(CONFIG_CPU_BIG_ENDIAN), y)
 KBUILD_CPPFLAGS	+= -mbig-endian
 AS		+= -EB
@@ -31,6 +36,14 @@ else
 KBUILD_CPPFLAGS	+= -mlittle-endian
 AS		+= -EL
 LD		+= -EL
+endif
+else
+# clang/ld.lld are told the endianness through -target, see scripts/Makefile.clang
+ifeq ($(CONFIG_CPU_BIG_ENDIAN), y)
+KBUILD_CPPFLAGS	+= -mbig-endian
+else
+KBUILD_CPPFLAGS	+= -mlittle-endian
+endif
 endif
 
 CHECKFLAGS	+= -D__aarch64__
