@@ -103,7 +103,10 @@ struct mousedev_client {
 	spinlock_t packet_lock;
 	int pos_x, pos_y;
 
-	signed char ps2[6];
+	/* PS/2 data is a byte stream; u8 also keeps clang happy about
+	 * "ps2[3] = 200" (upstream dae1a432ab1f).
+	 */
+	u8 ps2[6];
 	unsigned char ready, buffer, bufsiz;
 	unsigned char imexseq, impsseq;
 	enum mousedev_emul mode;
